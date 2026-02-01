@@ -10,7 +10,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 // Pull code from GitHub
-                git credentialsId: 'git-creds', url: 'https://github.com/yourusername/pythonnew-ci-cd-demo.git'
+                git credentialsId: 'git-creds', url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
             }
         }
 
