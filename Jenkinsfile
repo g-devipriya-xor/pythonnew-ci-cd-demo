@@ -2,12 +2,6 @@ pipeline {
     agent any
 
     environment {
-        // Docker pointing to Minikube
-        DOCKER_TLS_VERIFY = "1"
-        DOCKER_HOST = "tcp://192.168.49.2:2376"
-        DOCKER_CERT_PATH = "/var/lib/jenkins/.minikube/profiles/minikube"
-        MINIKUBE_ACTIVE_DOCKERD = "minikube"
-
         // Kubernetes config for Jenkins
         KUBECONFIG = "/var/lib/jenkins/.kube/config"
 
@@ -28,12 +22,7 @@ pipeline {
         stage('Test Minikube Connection') {
             steps {
                 sh '''
-                set -e
-                echo "Testing Docker connection to Minikube..."
-                docker info | grep "Server Version"
-
                 echo "Testing Kubernetes connection..."
-                kubectl config view
                 kubectl get nodes
                 '''
             }
@@ -42,7 +31,9 @@ pipeline {
         stage('Build Docker Image in Minikube') {
             steps {
                 sh '''
-                set -e
+                echo "Setting Docker environment to Minikube..."
+                eval $(minikube -p minikube docker-env)
+
                 echo "Building Docker image inside Minikube..."
                 docker build -t ${FULL_IMAGE} .
 
@@ -55,7 +46,6 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                set -e
                 echo "Applying Kubernetes manifests..."
                 kubectl apply -f deployment.yaml
                 kubectl apply -f service.yaml
@@ -69,7 +59,6 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                set -e
                 echo "Listing pods..."
                 kubectl get pods
 
