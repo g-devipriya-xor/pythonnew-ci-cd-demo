@@ -1,50 +1,40 @@
 pipeline {
     agent any
 
-    environment {
-        ECR_URI = "159750416379.dkr.ecr.us-east-1.amazonaws.com/python-cicd-app"
-    }
-
     stages {
-
         stage('Checkout') {
             steps {
-                // Pull code from GitHub
-                git branch: 'main', credentialsId: 'git-creds', url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
+                git branch: 'main', url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                // Build the Docker image on EC2 using sudo
-                sh "sudo docker build -t python-cicd-app:latest ."
+                // Build Docker image inside Minikube
+                sh """
+                    eval \$(minikube docker-env)
+                    docker build -t python-cicd-app:latest .
+                """
             }
         }
 
-        stage('Login to ECR') {
+        stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-                    // Authenticate to AWS ECR
-                    sh 'aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_URI'
-                }
-            }
-        }
-
-        stage('Push to ECR') {
-            steps {
-                // Tag and push the Docker image to ECR
-                sh "sudo docker tag python-cicd-app:latest $ECR_URI:latest"
-                sh "sudo docker push $ECR_URI:latest"
+                // Deploy YAML should have containerPort: 5001
+                sh "kubectl apply -f deployment.yaml"
+                
+                // Wait for rollout to complete
+                sh "kubectl rollout status deployment/python-cicd-app"
             }
         }
     }
 
     post {
         success {
-            echo "Docker image successfully pushed to ECR!"
+            echo "App deployed successfully to Minikube on port 5001!"
         }
         failure {
-            echo "Pipeline failed. Check logs for errors."
+            echo "Pipeline failed. Check logs."
         }
     }
 }
