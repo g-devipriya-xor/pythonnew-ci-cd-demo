@@ -62,6 +62,7 @@ pipeline {
         	kubectl delete service ${IMAGE_NAME}-service-${BRANCH_NAME} || true                
 		# Apply Deployment & Service
                 kubectl apply -f k8s/deployment.yaml
+		kubectl rollout restart deploy/python-cicd-app-${BRANCH_NAME}
                 '''
             }
         }
