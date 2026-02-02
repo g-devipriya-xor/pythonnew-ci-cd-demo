@@ -2,20 +2,15 @@ pipeline {
     agent any
 
     environment {
-        // Kubernetes config for Jenkins
         KUBECONFIG = "/home/devipriya/.kube/config"
-
-        // Docker image info
         IMAGE_NAME = "python-cicd-app"
-        IMAGE_TAG = "${env.BRANCH_NAME ?: 'main'}" // Use branch name or main if null
-        FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo "Cloning repository for branch ${env.BRANCH_NAME}..."
-                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
+                echo "Cloning repository..."
+                git branch: "${BRANCH_NAME}", url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
             }
         }
 
@@ -35,7 +30,7 @@ pipeline {
                 eval $(minikube -p minikube docker-env)
 
                 echo "Building Docker image inside Minikube..."
-                docker build -t ${FULL_IMAGE} .
+                docker build -t ${IMAGE_NAME}:${BRANCH_NAME} .
 
                 echo "Verify Docker image exists in Minikube..."
                 docker images | grep ${IMAGE_NAME}
@@ -48,19 +43,22 @@ pipeline {
                 sh '''
                 echo "Deploying branch ${BRANCH_NAME} to Kubernetes..."
 
-                # Assign NodePort per branch
-                case "${BRANCH_NAME}" in
-                  main) NODE_PORT=30001 ;;
-                  feature1) NODE_PORT=30002 ;;
-                  feature2) NODE_PORT=30003 ;;
-                  *) NODE_PORT=30010 ;;
-                esac
+                # Assign unique NodePort per branch
+                if [ "$BRANCH_NAME" = "main" ]; then
+                  NODE_PORT=30001
+                elif [ "$BRANCH_NAME" = "feature1" ]; then
+                  NODE_PORT=30002
+                elif [ "$BRANCH_NAME" = "feature2" ]; then
+                  NODE_PORT=30003
+                else
+                  NODE_PORT=30010  # fallback port for new branches
+                fi
 
                 # Replace placeholders in deployment.yaml
-                sed -i "s|image: python-cicd-app:.*|image: ${FULL_IMAGE}|g" k8s/deployment.yaml
-                sed -i "s|PLACEHOLDER_NODEPORT|${NODE_PORT}|g" k8s/deployment.yaml
+                sed -i "s|PLACEHOLDER_TAG|${BRANCH_NAME}|g" k8s/deployment.yaml
+                sed -i "s|PLACEHOLDER_NODEPORT|$NODE_PORT|g" k8s/deployment.yaml
 
-                # Apply Kubernetes deployment
+                # Apply Deployment & Service
                 kubectl apply -f k8s/deployment.yaml
                 '''
             }
@@ -70,7 +68,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Checking pods for branch ${BRANCH_NAME}..."
-                kubectl get pods -l app=python-cicd-app
+                kubectl get pods -l app=${IMAGE_NAME}-${BRANCH_NAME} -o wide
                 '''
             }
         }
