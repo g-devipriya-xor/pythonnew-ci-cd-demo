@@ -7,6 +7,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 echo "Cloning repository..."
@@ -29,8 +30,15 @@ pipeline {
                 echo "Setting Docker environment to Minikube..."
                 eval $(minikube -p minikube docker-env)
 
+                # For PRs, tag the image differently
+                if [[ "$BRANCH_NAME" == PR-* ]]; then
+                    IMAGE_TAG=${BRANCH_NAME}
+                else
+                    IMAGE_TAG=${BRANCH_NAME}
+                fi
+
                 echo "Building Docker image inside Minikube..."
-                docker build -t ${IMAGE_NAME}:${BRANCH_NAME} .
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
 
                 echo "Verify Docker image exists in Minikube..."
                 docker images | grep ${IMAGE_NAME}
@@ -41,28 +49,29 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                echo "Deploying branch ${BRANCH_NAME} to Kubernetes..."
+                echo "Deploying ${BRANCH_NAME} to Kubernetes..."
 
-                # Assign unique NodePort per branch
-                if [ "$BRANCH_NAME" = "main" ]; then
-                  NODE_PORT=30001
-                elif [ "$BRANCH_NAME" = "feature1" ]; then
-                  NODE_PORT=30002
-                elif [ "$BRANCH_NAME" = "feature2" ]; then
-                  NODE_PORT=30003
-                else
-                  NODE_PORT=30010  # fallback port for new branches
-                fi
+                # Assign unique NodePort per branch or PR
+                case "$BRANCH_NAME" in
+                    main) NODE_PORT=30001 ;;
+                    feature1) NODE_PORT=30002 ;;
+                    feature2) NODE_PORT=30003 ;;
+                    PR-*) NODE_PORT=$((30010 + ${BRANCH_NUMBER})) ;; # PR number ensures unique port
+                    *) NODE_PORT=30100 ;; # fallback
+                esac
 
                 # Replace placeholders in deployment.yaml
                 sed -i "s|PLACEHOLDER_TAG|${BRANCH_NAME}|g" k8s/deployment.yaml
                 sed -i "s|PLACEHOLDER_NODEPORT|$NODE_PORT|g" k8s/deployment.yaml
 
-		# Delete existing branch-specific Service (ignore error if not exists)
-        	kubectl delete service ${IMAGE_NAME}-service-${BRANCH_NAME} || true                
-		# Apply Deployment & Service
+                # Delete old service if exists
+                kubectl delete service ${IMAGE_NAME}-service-${BRANCH_NAME} || true
+
+                # Apply deployment & service
                 kubectl apply -f k8s/deployment.yaml
-		kubectl rollout restart deploy/python-cicd-app-${BRANCH_NAME}
+
+                # Force rollout restart to ensure updated code runs
+                kubectl rollout restart deploy/python-cicd-app-${BRANCH_NAME}
                 '''
             }
         }
@@ -70,7 +79,7 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                echo "Checking pods for branch ${BRANCH_NAME}..."
+                echo "Checking pods for ${BRANCH_NAME}..."
                 kubectl get pods -l app=${IMAGE_NAME}-${BRANCH_NAME} -o wide
                 '''
             }
@@ -79,10 +88,19 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline for branch ${BRANCH_NAME} completed successfully!"
+            echo "✅ Pipeline for ${BRANCH_NAME} completed successfully!"
         }
         failure {
-            echo "❌ Pipeline for branch ${BRANCH_NAME} failed!"
+            echo "❌ Pipeline for ${BRANCH_NAME} failed!"
+        }
+        cleanup {
+            script {
+                // Optional: delete PR deployments after testing
+                if (BRANCH_NAME.startsWith("PR-")) {
+                    sh "kubectl delete deploy python-cicd-app-${BRANCH_NAME} || true"
+                    sh "kubectl delete service ${IMAGE_NAME}-service-${BRANCH_NAME} || true"
+                }
+            }
         }
     }
 }
