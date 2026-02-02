@@ -2,29 +2,23 @@ pipeline {
     agent any
 
     environment {
-        // Kubernetes config for Jenkins
         KUBECONFIG = "/home/devipriya/.kube/config"
-
-        // Docker image info
         IMAGE_NAME = "python-cicd-app"
-        IMAGE_TAG = "latest"
+        IMAGE_TAG = "${env.BRANCH_NAME}"      // Branch name used as Docker tag
         FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo "Cloning repository..."
-                git branch: 'main', url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
+                echo "Cloning repository for branch ${env.BRANCH_NAME}..."
+                checkout scm
             }
         }
 
         stage('Test Minikube Connection') {
             steps {
-                sh '''
-                echo "Testing Kubernetes connection..."
-                kubectl get nodes
-                '''
+                sh 'kubectl get nodes'
             }
         }
 
@@ -34,7 +28,7 @@ pipeline {
                 echo "Setting Docker environment to Minikube..."
                 eval $(minikube -p minikube docker-env)
 
-                echo "Building Docker image inside Minikube..."
+                echo "Building Docker image for branch ${BRANCH_NAME}..."
                 docker build -t ${FULL_IMAGE} .
 
                 echo "Verify Docker image exists in Minikube..."
@@ -46,7 +40,11 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                echo "Deploying application to Minikube..."
+                echo "Deploying branch ${BRANCH_NAME} to Kubernetes..."
+
+                # Replace the image in deployment.yaml dynamically
+                sed -i "s|image: python-cicd-app:.*|image: ${FULL_IMAGE}|" k8s/deployment.yaml
+
                 kubectl apply -f k8s/deployment.yaml
                 '''
             }
@@ -54,20 +52,13 @@ pipeline {
 
         stage('Verify Deployment') {
             steps {
-                sh '''
-                echo "Checking pods..."
-                kubectl get pods
-                '''
+                sh 'kubectl get pods'
             }
         }
     }
 
     post {
-        success {
-            echo "✅ Pipeline completed successfully!"
-        }
-        failure {
-            echo "❌ Pipeline failed!"
-        }
+        success { echo "✅ Pipeline for branch ${BRANCH_NAME} completed successfully!" }
+        failure { echo "❌ Pipeline for branch ${BRANCH_NAME} failed!" }
     }
 }
