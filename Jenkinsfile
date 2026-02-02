@@ -36,6 +36,9 @@ pipeline {
                 export MINIKUBE_ACTIVE_DOCKERD=minikube
                 eval $(minikube -p minikube docker-env)
 
+                # Disable TLS verification to avoid certificate errors in Jenkins
+                export DOCKER_TLS_VERIFY=0
+
                 echo "Building Docker image inside Minikube..."
                 docker build -t ${FULL_IMAGE} .
 
