@@ -105,10 +105,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline for branch ${BRANCH_NAME} completed successfully!"
+            echo " Pipeline for branch ${BRANCH_NAME} completed successfully!"
         }
         failure {
-            echo "❌ Pipeline for branch ${BRANCH_NAME} failed!"
+            echo " Pipeline for branch ${BRANCH_NAME} failed!"
         }
     }
 }
