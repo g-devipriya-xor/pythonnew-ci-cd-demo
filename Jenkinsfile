@@ -114,6 +114,7 @@ pipeline {
                 <p>Check build details: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
                 """,
                 to: "${NOTIFY_EMAIL}"
+		smtpCredentialId: 'office365-cred'
             )
         }
         failure {
@@ -125,6 +126,7 @@ pipeline {
                 <p>Please check the console output: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
                 """,
                 to: "${NOTIFY_EMAIL}"
+                smtpCredentialId: 'office365-cred'
             )
         }
     }
