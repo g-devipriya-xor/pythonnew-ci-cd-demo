@@ -58,7 +58,9 @@ pipeline {
                 sed -i "s|PLACEHOLDER_TAG|${BRANCH_NAME}|g" k8s/deployment.yaml
                 sed -i "s|PLACEHOLDER_NODEPORT|$NODE_PORT|g" k8s/deployment.yaml
 
-                # Apply Deployment & Service
+		# Delete existing branch-specific Service (ignore error if not exists)
+        	kubectl delete service ${IMAGE_NAME}-service-${BRANCH_NAME} || true                
+		# Apply Deployment & Service
                 kubectl apply -f k8s/deployment.yaml
                 '''
             }
