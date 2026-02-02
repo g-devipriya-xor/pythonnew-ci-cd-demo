@@ -113,6 +113,7 @@ pipeline {
                 <p>Good news! The Jenkins pipeline for branch <b>${BRANCH_NAME}</b> completed successfully.</p>
                 <p>Check build details: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
                 """,
+		from: 'G.Devipriya@Xoriant.Com',
                 to: "${NOTIFY_EMAIL}"
             )
         }
@@ -124,6 +125,7 @@ pipeline {
                 <p>Oops! The Jenkins pipeline for branch <b>${BRANCH_NAME}</b> failed.</p>
                 <p>Please check the console output: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
                 """,
+		from: 'G.Devipriya@Xoriant.Com',
                 to: "${NOTIFY_EMAIL}"
             )
         }
