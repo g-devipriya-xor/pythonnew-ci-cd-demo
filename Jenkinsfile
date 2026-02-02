@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Kubernetes config for Jenkins
-        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        KUBECONFIG = "/home/devipriya/.kube/config"
 
         // Docker image info
         IMAGE_NAME = "python-cicd-app"
@@ -32,12 +32,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Setting Docker environment to Minikube..."
-                export MINIKUBE_HOME=/var/lib/jenkins
-                export MINIKUBE_ACTIVE_DOCKERD=minikube
                 eval $(minikube -p minikube docker-env)
-
-                # Disable TLS verification to avoid certificate errors in Jenkins
-                export DOCKER_TLS_VERIFY=0
 
                 echo "Building Docker image inside Minikube..."
                 docker build -t ${FULL_IMAGE} .
@@ -51,12 +46,8 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                echo "Applying Kubernetes manifests..."
-                kubectl apply -f deployment.yaml
-                kubectl apply -f service.yaml
-
-                echo "Waiting for deployment to complete..."
-                kubectl rollout status deployment/${IMAGE_NAME}
+                echo "Deploying application to Minikube..."
+                kubectl apply -f k8s-deployment.yaml
                 '''
             }
         }
@@ -64,11 +55,8 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                echo "Listing pods..."
+                echo "Checking pods..."
                 kubectl get pods
-
-                echo "Checking service endpoints..."
-                kubectl get svc
                 '''
             }
         }
@@ -76,10 +64,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline succeeded! Application deployed to Minikube."
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Pipeline failed! Check logs for details."
+            echo "❌ Pipeline failed!"
         }
     }
 }
