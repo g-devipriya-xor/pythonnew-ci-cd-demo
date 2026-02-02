@@ -32,6 +32,8 @@ pipeline {
             steps {
                 sh '''
                 echo "Setting Docker environment to Minikube..."
+                export MINIKUBE_HOME=/var/lib/jenkins
+                export MINIKUBE_ACTIVE_DOCKERD=minikube
                 eval $(minikube -p minikube docker-env)
 
                 echo "Building Docker image inside Minikube..."
