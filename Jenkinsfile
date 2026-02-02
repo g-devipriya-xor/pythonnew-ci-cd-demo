@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    environment {
+        // Let Jenkins know where kubeconfig is
+        KUBECONFIG = "${env.HOME}/.kube/config"
+        IMAGE_NAME = "python-cicd-app"
+        IMAGE_TAG = "latest"
+        FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -8,29 +16,45 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Image in Minikube') {
             steps {
-                sh '''
-                # Point Docker CLI to Minikube's Docker daemon
-                eval $(minikube docker-env)
+                script {
+                    // Use the same shell for docker-env and docker build
+                    sh '''
+                    echo "Using Minikube Docker daemon..."
+                    eval $(minikube -p minikube docker-env)
 
-                # Build the Docker image
-                docker build -t python-cicd-app:latest .
+                    echo "Building Docker image..."
+                    docker build -t ${FULL_IMAGE} .
 
-                # Optional: verify image exists in Minikube
-                docker images | grep python-cicd-app
-                '''
+                    echo "Verifying image in Minikube..."
+                    docker images | grep ${IMAGE_NAME}
+                    '''
+                }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
-                # Apply Kubernetes deployment
-                kubectl apply -f deployment.yaml
+                script {
+                    sh '''
+                    echo "Applying Kubernetes manifests..."
+                    kubectl apply -f deployment.yaml
+                    kubectl apply -f service.yaml
 
-                # Wait until rollout completes
-                kubectl rollout status deployment/python-cicd-app
+                    echo "Waiting for deployment rollout..."
+                    kubectl rollout status deployment/${IMAGE_NAME}
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                echo "Listing pods and services..."
+                kubectl get pods
+                kubectl get svc
                 '''
             }
         }
@@ -38,11 +62,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ App deployed successfully to Minikube!"
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
             echo "❌ Pipeline failed. Check logs."
         }
     }
 }
-
