@@ -2,8 +2,6 @@ pipeline {
     agent any
 
     environment {
-        // Make sure Jenkins can access Kubernetes cluster
-        KUBECONFIG = "${env.HOME}/.kube/config"
         IMAGE_NAME = "python-cicd-app"
         IMAGE_TAG = "latest"
         FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
@@ -35,26 +33,25 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
+                // Use Jenkins Secret Text credential for kubeconfig
+                withCredentials([string(credentialsId: 'kubeconfig-minikube', variable: 'KUBECONFIG_CONTENT')]) {
                     sh '''
+                    echo "Creating temporary kubeconfig..."
+                    echo "$KUBECONFIG_CONTENT" > kubeconfig.yaml
+                    export KUBECONFIG=$(pwd)/kubeconfig.yaml
+
                     echo "Applying Kubernetes manifests..."
                     kubectl apply -f deployment.yaml
                     kubectl apply -f service.yaml
 
                     echo "Waiting for deployment rollout..."
                     kubectl rollout status deployment/${IMAGE_NAME}
+
+                    echo "Verifying pods and services..."
+                    kubectl get pods
+                    kubectl get svc
                     '''
                 }
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                sh '''
-                echo "Listing pods and services..."
-                kubectl get pods
-                kubectl get svc
-                '''
             }
         }
     }
@@ -64,7 +61,7 @@ pipeline {
             echo "✅ Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Pipeline failed. Check logs."
+            echo "❌ Pipeline failed. Check the logs for details."
         }
     }
 }
