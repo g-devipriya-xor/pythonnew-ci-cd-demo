@@ -10,20 +10,17 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                // Build Docker image inside Minikube
-                sh """
-                    eval \$(minikube docker-env)
-                    docker build -t python-cicd-app:latest .
-                """
+                // Use Minikube's Docker daemon directly (no TLS issues)
+                sh '''
+                eval $(minikube docker-env --shell bash)
+                docker build -t python-cicd-app:latest .
+                '''
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                // Deploy YAML should have containerPort: 5001
                 sh "kubectl apply -f deployment.yaml"
-                
-                // Wait for rollout to complete
                 sh "kubectl rollout status deployment/python-cicd-app"
             }
         }
@@ -31,7 +28,7 @@ pipeline {
 
     post {
         success {
-            echo "App deployed successfully to Minikube on port 5001!"
+            echo "App deployed successfully to Minikube!"
         }
         failure {
             echo "Pipeline failed. Check logs."
