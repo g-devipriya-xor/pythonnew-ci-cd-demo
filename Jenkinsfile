@@ -47,7 +47,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying application to Minikube..."
-                kubectl apply -f k8s-deployment.yaml
+                kubectl apply -f k8s/deployment.yaml
                 '''
             }
         }
