@@ -2,6 +2,8 @@ pipeline {
     agent any
 
     environment {
+        // Make sure Jenkins can access Kubernetes cluster
+        KUBECONFIG = "${env.HOME}/.kube/config"
         IMAGE_NAME = "python-cicd-app"
         IMAGE_TAG = "latest"
         FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
@@ -14,51 +16,52 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image inside Minikube VM') {
+        stage('Build Docker Image in Minikube') {
             steps {
                 script {
-                    sh """
-                    echo "Building Docker image inside Minikube via SSH..."
-                    minikube ssh '
-                        cd /home/docker
-                        mkdir -p python-ci
-                    '
+                    sh '''
+                    echo "Switching Docker CLI to Minikube..."
+                    eval $(minikube -p minikube docker-env)
 
-                    # Copy files from host to Minikube VM
-                    minikube cp ./ /home/docker/python-ci
+                    echo "Building Docker image..."
+                    docker build -t ${FULL_IMAGE} .
 
-                    # SSH into Minikube and build Docker image
-                    minikube ssh "
-                        cd /home/docker/python-ci
-                        docker build -t ${FULL_IMAGE} .
-                        docker images | grep ${IMAGE_NAME}
-                    "
-                    """
+                    echo "Verifying image exists in Minikube..."
+                    docker images | grep ${IMAGE_NAME}
+                    '''
                 }
             }
         }
 
-        stage('Deploy to Kubernetes inside Minikube VM') {
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh """
-                    echo "Deploying to Kubernetes via SSH..."
-                    minikube ssh "
-                        kubectl apply -f /home/docker/python-ci/deployment.yaml
-                        kubectl apply -f /home/docker/python-ci/service.yaml
-                        kubectl rollout status deployment/${IMAGE_NAME}
-                        kubectl get pods
-                        kubectl get svc
-                    "
-                    """
+                    sh '''
+                    echo "Applying Kubernetes manifests..."
+                    kubectl apply -f deployment.yaml
+                    kubectl apply -f service.yaml
+
+                    echo "Waiting for deployment rollout..."
+                    kubectl rollout status deployment/${IMAGE_NAME}
+                    '''
                 }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                echo "Listing pods and services..."
+                kubectl get pods
+                kubectl get svc
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline completed successfully (via minikube ssh)!"
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
             echo "❌ Pipeline failed. Check logs."
