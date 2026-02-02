@@ -11,17 +11,13 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                # Point Docker to Minikube daemon
+                # Point Docker CLI to Minikube's Docker daemon
                 eval $(minikube docker-env)
-                
-                # Disable TLS verification in Jenkins
-                export DOCKER_TLS_VERIFY=""
-                export DOCKER_CERT_PATH=""
-                
+
                 # Build the Docker image
                 docker build -t python-cicd-app:latest .
-                
-                # Verify image exists in Minikube
+
+                # Optional: verify image exists in Minikube
                 docker images | grep python-cicd-app
                 '''
             }
@@ -30,10 +26,10 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                # Apply deployment YAML
+                # Apply Kubernetes deployment
                 kubectl apply -f deployment.yaml
-                
-                # Wait for rollout
+
+                # Wait until rollout completes
                 kubectl rollout status deployment/python-cicd-app
                 '''
             }
@@ -45,7 +41,8 @@ pipeline {
             echo "✅ App deployed successfully to Minikube!"
         }
         failure {
-            echo "❌ Pipeline failed. Check logs for errors."
+            echo "❌ Pipeline failed. Check logs."
         }
     }
 }
+
