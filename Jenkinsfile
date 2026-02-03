@@ -4,7 +4,6 @@ pipeline {
     environment {
         KUBECONFIG = "/home/devipriya/.kube/config"
         IMAGE_NAME = "python-cicd-app"
-	NOTIFY_EMAIL = "devipriyagadi99@gmail.com"
     }
 
     stages {
@@ -112,8 +111,7 @@ pipeline {
                 body: """
                 <p>Good news! The Jenkins pipeline for branch <b>${BRANCH_NAME}</b> completed successfully.</p>
                 <p>Check build details: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
-                """,
-                to: "${NOTIFY_EMAIL}"
+                """
             )
         }
         failure {
@@ -123,8 +121,7 @@ pipeline {
                 body: """
                 <p>Oops! The Jenkins pipeline for branch <b>${BRANCH_NAME}</b> failed.</p>
                 <p>Please check the console output: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
-                """,
-                to: "${NOTIFY_EMAIL}"
+                """
             )
         }
     }
