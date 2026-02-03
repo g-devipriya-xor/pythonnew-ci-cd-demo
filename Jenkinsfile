@@ -43,17 +43,9 @@ pipeline {
             steps {
                 sh '''
                 echo "Deploying branch ${BRANCH_NAME} to Kubernetes..."
-
-                # Assign unique NodePort per branch
-                if [ "$BRANCH_NAME" = "main" ]; then
-                  NODE_PORT=30001
-                elif [ "$BRANCH_NAME" = "feature1" ]; then
-                  NODE_PORT=30002
-                elif [ "$BRANCH_NAME" = "feature2" ]; then
-                  NODE_PORT=30003
-                else
-                  NODE_PORT=30010  # fallback port for new branches or PRs
-                fi
+		# Generate a random NodePort between 30010-32767
+        	NODE_PORT=$(shuf -i 30010-32767 -n 1)
+        	echo "Using NodePort: $NODE_PORT"
 
                 # Replace placeholders in deployment.yaml
                 sed -i "s|PLACEHOLDER_TAG|${BRANCH_NAME}|g" k8s/deployment.yaml
