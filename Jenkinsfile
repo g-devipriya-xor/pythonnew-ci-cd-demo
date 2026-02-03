@@ -111,8 +111,8 @@ pipeline {
 		to: "${NOTIFY_EMAIL}",
                 subject: "Build Success: ${JOB_NAME} [${BRANCH_NAME}]",
                 body: """
-                <p>Good news! The Jenkins pipeline for branch <b>${BRANCH_NAME}</b> completed successfully.</p>
-                <p>Check build details: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
+                Good news! The Jenkins pipeline for branch ${BRANCH_NAME} completed successfully.
+                Check build details: ${BUILD_URL} ${BUILD_URL}
                 """
             )
         }
@@ -122,8 +122,8 @@ pipeline {
 		 to: "${NOTIFY_EMAIL}",
                 subject: "Build Failed: ${JOB_NAME} [${BRANCH_NAME}]",
                 body: """
-                <p>Oops! The Jenkins pipeline for branch <b>${BRANCH_NAME}</b> failed.</p>
-                <p>Please check the console output: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
+                Oops! The Jenkins pipeline for branch ${BRANCH_NAME} failed.
+                Please check the console output:${BUILD_URL} ${BUILD_URL}
                 """
             )
         }
