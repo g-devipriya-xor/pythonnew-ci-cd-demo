@@ -83,7 +83,7 @@ pipeline {
 	stage('Archive Artifacts') {
 		steps {
 		echo "Archiving build artifacts..."
-		archiveArtifacts artifacts: '**/*.py,k8s/*.yaml,result.log', fingerprint: true
+		archiveArtifacts artifacts: 'app.py,k8s/*.yaml,result.log', fingerprint: true
 		}
 	}
 
