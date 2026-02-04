@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def hello():
-	return "Hello from Python CI/CD Pipeline updated test"
+	return "Hello from Python CI/CD Pipeline updated test two"
 @app.route("/status")
 def status():
     return "App is running"
