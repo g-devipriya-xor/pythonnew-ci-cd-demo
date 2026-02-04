@@ -44,8 +44,8 @@ pipeline {
                 sh '''
                 echo "Deploying branch ${BRANCH_NAME} to Kubernetes..."
 		# Generate a random NodePort between 30010-32767
-        	NODE_PORT=$(shuf -i 30010-32767 -n 1)
-        	echo "Using NodePort: $NODE_PORT"
+		NODE_PORT=$(shuf -i 30010-32767 -n 1)
+		echo "Using NodePort: $NODE_PORT"
 
                 # Replace placeholders in deployment.yaml
                 sed -i "s|PLACEHOLDER_TAG|${BRANCH_NAME}|g" k8s/deployment.yaml
