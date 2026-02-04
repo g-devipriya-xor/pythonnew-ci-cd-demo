@@ -14,6 +14,15 @@ pipeline {
                 git branch: "${BRANCH_NAME}", url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
             }
         }
+	stage('Save Build Info') {
+            steps {
+                sh '''
+                echo "Build for branch ${BRANCH_NAME} started at $(date)" > result.log
+                echo "Repository: https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo" >> result.log
+                echo "Docker image to be built: ${IMAGE_NAME}:${BRANCH_NAME}" >> result.log
+                '''
+            }
+        }
 
         stage('Test Minikube Connection') {
             steps {
@@ -71,6 +80,12 @@ pipeline {
                 '''
             }
         }
+	stage('Archive Artifacts') {
+		steps {
+		echo "Archiving build artifacts..."
+		archiveArtifacts artifacts: '**/*.py,k8s/*.yaml,result.log', fingerprint: true
+		}
+	}
 
         stage('Cleanup PR Deployments') {
             when {
