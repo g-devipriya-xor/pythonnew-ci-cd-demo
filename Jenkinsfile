@@ -89,7 +89,7 @@ pipeline {
 
         stage('Cleanup PR Deployments') {
             when {
-                branch 'main'  // Run only on main after merge
+                branch 'main' 
             }
             steps {
                 sh '''
