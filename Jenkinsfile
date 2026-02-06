@@ -5,26 +5,38 @@ pipeline {
         KUBECONFIG = "/home/devipriya/.kube/config"
         IMAGE_NAME = "python-cicd-app"
         NOTIFY_EMAIL = "G.Devipriya@Xoriant.Com"
+        RAW_BRANCH = "${env.BRANCH_NAME}"
     }
 
     stages {
+        stage('Prepare Branch Name') {
+            steps {
+                script {
+                    // Normalize branch name for Kubernetes: lowercase, replace invalid chars with "-"
+                    if (RAW_BRANCH?.trim()) {
+                        SAFE_BRANCH = RAW_BRANCH.toLowerCase().replaceAll("[^a-z0-9-]", "-")
+                    } else {
+                        SAFE_BRANCH = "main"
+                    }
+                    echo "Normalized branch name for Kubernetes: ${SAFE_BRANCH}"
+                }
+            }
+        }
+
         stage('Checkout') {
             steps {
-                echo "Cloning repository for branch ${env.BRANCH_NAME}..."
-                checkout scm
+                echo "Cloning repository for branch ${BRANCH_NAME}..."
+                git branch: "${BRANCH_NAME}", url: 'https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo.git'
             }
         }
 
         stage('Save Build Info') {
             steps {
-                script {
-                    def tagName = env.BRANCH_NAME ?: "PR-${env.CHANGE_ID}"
-                    sh """
-                    echo "Build for branch ${tagName} started at \$(date)" > result.log
-                    echo "Repository: https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo" >> result.log
-                    echo "Docker image to be built: ${IMAGE_NAME}:${tagName}" >> result.log
-                    """
-                }
+                sh """
+                echo "Build for branch ${BRANCH_NAME} started at \$(date)" > result.log
+                echo "Repository: https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo" >> result.log
+                echo "Docker image to be built: ${IMAGE_NAME}:${SAFE_BRANCH}" >> result.log
+                """
             }
         }
 
@@ -39,62 +51,50 @@ pipeline {
 
         stage('Build Docker Image in Minikube') {
             steps {
-                script {
-                    def tagName = env.BRANCH_NAME ?: "PR-${env.CHANGE_ID}"
-                    sh """
-                    echo "Setting Docker environment to Minikube..."
-                    eval \$(minikube -p minikube docker-env)
+                sh """
+                echo "Setting Docker environment to Minikube..."
+                eval \$(minikube -p minikube docker-env)
 
-                    echo "Building Docker image inside Minikube..."
-                    docker build -t ${IMAGE_NAME}:${tagName} .
+                echo "Building Docker image inside Minikube..."
+                docker build -t ${IMAGE_NAME}:${SAFE_BRANCH} .
 
-                    echo "Verify Docker image exists in Minikube..."
-                    docker images | grep ${IMAGE_NAME}
-                    """
-                }
+                echo "Verify Docker image exists in Minikube..."
+                docker images | grep ${IMAGE_NAME}
+                """
             }
         }
 
         stage('Deploy to Kubernetes') {
-            when {
-                anyOf {
-                    branch 'main'
-                    expression { env.BRANCH_NAME != null } // deploy for both main and PRs
-                }
-            }
             steps {
-                script {
-                    def tagName = env.BRANCH_NAME ?: "PR-${env.CHANGE_ID}"
-                    sh """
-                    echo "Deploying branch ${tagName} to Kubernetes..."
-                    NODE_PORT=\$(shuf -i 30010-32767 -n 1)
-                    echo "Using NodePort: \$NODE_PORT"
+                sh """
+                echo "Deploying branch ${SAFE_BRANCH} to Kubernetes..."
 
-                    sed -i "s|PLACEHOLDER_TAG|${tagName}|g" k8s/deployment.yaml
-                    sed -i "s|PLACEHOLDER_NODEPORT|\$NODE_PORT|g" k8s/deployment.yaml
+                # Generate a random NodePort between 30010-32767
+                NODE_PORT=\$(shuf -i 30010-32767 -n 1)
+                echo "Using NodePort: \$NODE_PORT"
 
-                    # Delete existing service (ignore if not exists)
-                    kubectl delete service ${IMAGE_NAME}-service-${tagName} || true
+                # Replace placeholders in deployment.yaml
+                sed -i "s|PLACEHOLDER_TAG|${SAFE_BRANCH}|g" k8s/deployment.yaml
+                sed -i "s|PLACEHOLDER_NODEPORT|\$NODE_PORT|g" k8s/deployment.yaml
 
-                    # Apply Deployment & Service
-                    kubectl apply -f k8s/deployment.yaml
+                # Delete existing branch-specific Service (ignore error if not exists)
+                kubectl delete service ${IMAGE_NAME}-service-${SAFE_BRANCH} || true
 
-                    # Force rollout restart
-                    kubectl rollout restart deploy/${IMAGE_NAME}-${tagName}
-                    """
-                }
+                # Apply Deployment & Service
+                kubectl apply -f k8s/deployment.yaml
+
+                # Force rollout restart to pick up new image/code
+                kubectl rollout restart deploy/${IMAGE_NAME}-${SAFE_BRANCH}
+                """
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                script {
-                    def tagName = env.BRANCH_NAME ?: "PR-${env.CHANGE_ID}"
-                    sh """
-                    echo "Checking pods for branch ${tagName}..."
-                    kubectl get pods -l app=${IMAGE_NAME}-${tagName} -o wide
-                    """
-                }
+                sh """
+                echo "Checking pods for branch ${SAFE_BRANCH}..."
+                kubectl get pods -l app=${IMAGE_NAME}-${SAFE_BRANCH} -o wide
+                """
             }
         }
 
@@ -110,42 +110,44 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh '''
+                sh """
                 echo "Cleaning up PR deployments after merge..."
 
-                for DEPLOY in $(kubectl get deploy -o name | grep ${IMAGE_NAME}- | grep -v main); do
-                    echo "Deleting deployment $DEPLOY"
-                    kubectl delete $DEPLOY
+                # Delete PR-specific deployments
+                for DEPLOY in \$(kubectl get deploy -o name | grep ${IMAGE_NAME}- | grep -v main); do
+                    echo "Deleting deployment \$DEPLOY"
+                    kubectl delete \$DEPLOY
                 done
 
-                for SERVICE in $(kubectl get svc -o name | grep ${IMAGE_NAME}-service- | grep -v main); do
-                    echo "Deleting service $SERVICE"
-                    kubectl delete $SERVICE
+                # Delete PR-specific services
+                for SERVICE in \$(kubectl get svc -o name | grep ${IMAGE_NAME}-service- | grep -v main); do
+                    echo "Deleting service \$SERVICE"
+                    kubectl delete \$SERVICE
                 done
-                '''
+                """
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline for branch ${env.BRANCH_NAME ?: 'PR-${env.CHANGE_ID}'} completed successfully!"
+            echo "Pipeline for branch ${BRANCH_NAME} completed successfully!"
             emailext(
                 to: "${NOTIFY_EMAIL}",
-                subject: "Build Success: ${JOB_NAME} [${env.BRANCH_NAME ?: 'PR-${env.CHANGE_ID}'}]",
+                subject: "Build Success: ${JOB_NAME} [${BRANCH_NAME}]",
                 body: """
-                Good news! The Jenkins pipeline for branch ${env.BRANCH_NAME ?: 'PR-${env.CHANGE_ID}'} completed successfully.
+                Good news! The Jenkins pipeline for branch ${BRANCH_NAME} completed successfully.
                 Check build details: ${BUILD_URL}
                 """
             )
         }
         failure {
-            echo "Pipeline for branch ${env.BRANCH_NAME ?: 'PR-${env.CHANGE_ID}'} failed!"
+            echo "Pipeline for branch ${BRANCH_NAME} failed!"
             emailext(
                 to: "${NOTIFY_EMAIL}",
-                subject: "Build Failed: ${JOB_NAME} [${env.BRANCH_NAME ?: 'PR-${env.CHANGE_ID}'}]",
+                subject: "Build Failed: ${JOB_NAME} [${BRANCH_NAME}]",
                 body: """
-                Oops! The Jenkins pipeline for branch ${env.BRANCH_NAME ?: 'PR-${env.CHANGE_ID}'} failed.
+                Oops! The Jenkins pipeline for branch ${BRANCH_NAME} failed.
                 Please check the console output: ${BUILD_URL}
                 """
             )
