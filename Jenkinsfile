@@ -20,7 +20,7 @@ pipeline {
                 script {
                     def tagName = env.BRANCH_NAME ?: "PR-${env.CHANGE_ID}"
                     sh """
-                    echo "Build for branch ${tagName} started at $(date)" > result.log
+                    echo "Build for branch ${tagName} started at \$(date)" > result.log
                     echo "Repository: https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo" >> result.log
                     echo "Docker image to be built: ${IMAGE_NAME}:${tagName}" >> result.log
                     """
