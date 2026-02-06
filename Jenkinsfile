@@ -76,11 +76,22 @@ pipeline {
                 # Replace placeholders in deployment.yaml
                 sed -i "s|PLACEHOLDER_TAG|${SAFE_BRANCH}|g" k8s/deployment.yaml
                 sed -i "s|PLACEHOLDER_NODEPORT|\$NODE_PORT|g" k8s/deployment.yaml
-		#delete existing deployments
-		kubectl delete deploy ${IMAGE_NAME}-${SAFE_BRANCH} || true
+		
+		# Check and delete existing deployment if present
+		if kubectl get deploy ${IMAGE_NAME}-${SAFE_BRANCH} &> /dev/null; then
+		echo "Deleting existing deployment ${IMAGE_NAME}-${SAFE_BRANCH}..."
+		kubectl delete deploy ${IMAGE_NAME}-${SAFE_BRANCH}
+		else
+		echo "Deployment ${IMAGE_NAME}-${SAFE_BRANCH} does not exist. Skipping deletion."
+		fi
 
-                # Delete existing branch-specific Service (ignore error if not exists)
-                kubectl delete service ${IMAGE_NAME}-service-${SAFE_BRANCH} || true
+        	# Check and delete existing service if present
+		if kubectl get svc ${IMAGE_NAME}-service-${SAFE_BRANCH} &> /dev/null; then
+		echo "Deleting existing service ${IMAGE_NAME}-service-${SAFE_BRANCH}..."
+		kubectl delete svc ${IMAGE_NAME}-service-${SAFE_BRANCH}
+		else
+			echo "Service ${IMAGE_NAME}-service-${SAFE_BRANCH} does not exist. Skipping deletion."
+		fi
 
                 # Apply Deployment & Service
                 kubectl apply -f k8s/deployment.yaml
