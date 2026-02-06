@@ -1,0 +1,11 @@
+# All Python files
+*.py @g-devipriya-xor
+
+# Kubernetes YAML files
+k8s/*.yaml @g-devipriya-xor
+
+# Jenkins pipeline
+Jenkinsfile @g-devipriya-xor
+
+# Everything else
+* @g-devipriya-xor
