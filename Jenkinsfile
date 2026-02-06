@@ -13,7 +13,12 @@ pipeline {
             steps {
                 script {
                     // Normalize branch name for Kubernetes: lowercase, replace invalid chars with "-"
-                    SAFE_BRANCH = RAW_BRANCH.toLowerCase().replaceAll("[^a-z0-9-]", "-")
+                    // Fallback to 'main' if branch name is empty
+                    if (RAW_BRANCH?.trim()) {
+                        SAFE_BRANCH = RAW_BRANCH.toLowerCase().replaceAll("[^a-z0-9-]", "-")
+                    } else {
+                        SAFE_BRANCH = "main"
+                    }
                     echo "Normalized branch name for Kubernetes: ${SAFE_BRANCH}"
                 }
             }
@@ -31,7 +36,7 @@ pipeline {
                 sh '''
                 echo "Build for branch ${BRANCH_NAME} started at $(date)" > result.log
                 echo "Repository: https://github.com/g-devipriya-xor/pythonnew-ci-cd-demo" >> result.log
-                echo "Docker image to be built: ${IMAGE_NAME}:${BRANCH_NAME}" >> result.log
+                echo "Docker image to be built: ${IMAGE_NAME}:${SAFE_BRANCH}" >> result.log
                 '''
             }
         }
@@ -52,7 +57,7 @@ pipeline {
                 eval $(minikube -p minikube docker-env)
 
                 echo "Building Docker image inside Minikube..."
-                docker build -t ${IMAGE_NAME}:${BRANCH_NAME} .
+                docker build -t ${IMAGE_NAME}:${SAFE_BRANCH} .
 
                 echo "Verify Docker image exists in Minikube..."
                 docker images | grep ${IMAGE_NAME}
