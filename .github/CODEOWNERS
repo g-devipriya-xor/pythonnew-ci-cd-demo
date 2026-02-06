@@ -1,11 +1,11 @@
 # All Python files
-*.py @vinuthna-j-xor
+*.py @devipriya-1234
 
 # Kubernetes YAML files
-k8s/*.yaml @vinuthna-j-xor
+k8s/*.yaml @devipriya-1234
 
 # Jenkins pipeline
-Jenkinsfile @vinuthna-j-xor
+Jenkinsfile @devipriya-1234
 
 # Everything else
-* vinuthna-j-xor
+* @devipriya-1234
