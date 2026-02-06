@@ -65,42 +65,40 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-            steps {
-                sh """
-                echo "Deploying branch ${SAFE_BRANCH} to Kubernetes..."
+		steps {
+			sh '''
+			set -e
 
-                # Generate a random NodePort between 30010-32767
-                NODE_PORT=\$(shuf -i 30010-32767 -n 1)
-                echo "Using NodePort: \$NODE_PORT"
+			echo "Deploying branch '"$SAFE_BRANCH"' to Kubernetes..."
 
-                # Replace placeholders in deployment.yaml
-                sed -i "s|PLACEHOLDER_TAG|${SAFE_BRANCH}|g" k8s/deployment.yaml
-                sed -i "s|PLACEHOLDER_NODEPORT|\$NODE_PORT|g" k8s/deployment.yaml
-		
-		# Check and delete existing deployment if present
-		if kubectl get deploy ${IMAGE_NAME}-${SAFE_BRANCH} &> /dev/null; then
-			echo "Deleting existing deployment ${IMAGE_NAME}-${SAFE_BRANCH}..."
-			kubectl delete deploy ${IMAGE_NAME}-${SAFE_BRANCH}
-		else
-			echo "Deployment ${IMAGE_NAME}-${SAFE_BRANCH} does not exist. Skipping deletion."
-		fi
+			NODE_PORT=$(shuf -i 30010-32767 -n 1)
+			echo "Using NodePort: $NODE_PORT"
 
-        	# Check and delete existing service if present
-		if kubectl get svc ${IMAGE_NAME}-service-${SAFE_BRANCH} &> /dev/null; then
-			echo "Deleting existing service ${IMAGE_NAME}-service-${SAFE_BRANCH}..."
-			kubectl delete svc ${IMAGE_NAME}-service-${SAFE_BRANCH}
-		else
-			echo "Service ${IMAGE_NAME}-service-${SAFE_BRANCH} does not exist. Skipping deletion."
-		fi
+			sed -i "s|PLACEHOLDER_TAG|$SAFE_BRANCH|g" k8s/deployment.yaml
+			sed -i "s|PLACEHOLDER_NODEPORT|$NODE_PORT|g" k8s/deployment.yaml
 
-                # Apply Deployment & Service
-                kubectl apply -f k8s/deployment.yaml
+			if kubectl get deployment ${IMAGE_NAME}-${SAFE_BRANCH} >/dev/null 2>&1; then
+				echo "Deleting existing deployment ${IMAGE_NAME}-${SAFE_BRANCH}"
+				kubectl delete deployment ${IMAGE_NAME}-${SAFE_BRANCH}
+			else
+				echo "Deployment ${IMAGE_NAME}-${SAFE_BRANCH} not found, skipping delete"
+			fi
 
-                # Force rollout restart to pick up new image/code
-                kubectl rollout restart deploy/${IMAGE_NAME}-${SAFE_BRANCH}
-                """
-            }
-        }
+			if kubectl get service ${IMAGE_NAME}-service-${SAFE_BRANCH} >/dev/null 2>&1; then
+				echo "Deleting existing service ${IMAGE_NAME}-service-${SAFE_BRANCH}"
+				kubectl delete service ${IMAGE_NAME}-service-${SAFE_BRANCH}
+			else
+				echo "Service ${IMAGE_NAME}-service-${SAFE_BRANCH} not found, skipping delete"
+			fi
+
+			kubectl apply -f k8s/deployment.yaml
+
+        		# Force rollout restart to ensure new pods are created
+			kubectl rollout restart deployment/${IMAGE_NAME}-${SAFE_BRANCH}
+			'''
+		}
+	}
+
 
         stage('Verify Deployment') {
             steps {
