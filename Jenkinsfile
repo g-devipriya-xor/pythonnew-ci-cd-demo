@@ -79,16 +79,16 @@ pipeline {
 		
 		# Check and delete existing deployment if present
 		if kubectl get deploy ${IMAGE_NAME}-${SAFE_BRANCH} &> /dev/null; then
-		echo "Deleting existing deployment ${IMAGE_NAME}-${SAFE_BRANCH}..."
-		kubectl delete deploy ${IMAGE_NAME}-${SAFE_BRANCH}
+			echo "Deleting existing deployment ${IMAGE_NAME}-${SAFE_BRANCH}..."
+			kubectl delete deploy ${IMAGE_NAME}-${SAFE_BRANCH}
 		else
-		echo "Deployment ${IMAGE_NAME}-${SAFE_BRANCH} does not exist. Skipping deletion."
+			echo "Deployment ${IMAGE_NAME}-${SAFE_BRANCH} does not exist. Skipping deletion."
 		fi
 
         	# Check and delete existing service if present
 		if kubectl get svc ${IMAGE_NAME}-service-${SAFE_BRANCH} &> /dev/null; then
-		echo "Deleting existing service ${IMAGE_NAME}-service-${SAFE_BRANCH}..."
-		kubectl delete svc ${IMAGE_NAME}-service-${SAFE_BRANCH}
+			echo "Deleting existing service ${IMAGE_NAME}-service-${SAFE_BRANCH}..."
+			kubectl delete svc ${IMAGE_NAME}-service-${SAFE_BRANCH}
 		else
 			echo "Service ${IMAGE_NAME}-service-${SAFE_BRANCH} does not exist. Skipping deletion."
 		fi
