@@ -14,9 +14,9 @@ pipeline {
                 script {
                     // Normalize branch name for Kubernetes: lowercase, replace invalid chars with "-"
                     if (RAW_BRANCH?.trim()) {
-                        SAFE_BRANCH = RAW_BRANCH.toLowerCase().replaceAll("[^a-z0-9-]", "-")
+                        env.SAFE_BRANCH = RAW_BRANCH.toLowerCase().replaceAll("[^a-z0-9-]", "-")
                     } else {
-                        SAFE_BRANCH = "main"
+                        env.SAFE_BRANCH = "main"
                     }
                     echo "Normalized branch name for Kubernetes: ${SAFE_BRANCH}"
                 }
